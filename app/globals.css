@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 45 93% 48%;
+    --primary-foreground: 222.2 47% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 45 93% 48%;
+    --accent-foreground: 222.2 47% 11.2%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 45 93% 48%;
+    --radius: 0.75rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #2A2E34;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #3B3F46;
+  border-radius: 10px;
+  border: 2px solid #2A2E34;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #F5B301;
+}
+
+/* Selection */
+::selection {
+  background-color: #F5B301;
+  color: #1E2328;
+}
+
+/* Focus visible */
+*:focus-visible {
+  outline: 2px solid #F5B301;
+  outline-offset: 2px;
+}
