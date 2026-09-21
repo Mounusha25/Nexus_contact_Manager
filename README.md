@@ -415,7 +415,7 @@ Before you begin, ensure you have the following:
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/Brijesh03032001/SmartContactManager.git
+git clone https://github.com/Mounusha25/Nexus_contact_Manager.git
 cd smartcontactmanager
 
 # 2. Install dependencies (takes ~2 minutes)
