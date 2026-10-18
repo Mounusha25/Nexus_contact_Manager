@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, X, Calendar, AlertCircle, Clock, Sparkles } from "lucide-react";
+import { CheckCircle, X, AlertCircle, Clock, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Id } from "@/convex/_generated/dataModel";
 

@@ -9,11 +9,8 @@ import { MetricCard } from "@/components/dashboard/MetricCard";
 import { NetworkGrowthCard } from "@/components/dashboard/NetworkGrowthCard";
 import { RelationshipChartCard } from "@/components/dashboard/RelationshipChartCard";
 
-// TEMPORARY: Hardcoded user ID for testing
-const HARDCODED_USER_ID = "js741ht0frav0t82dveqk94cv17ybpe1" as any;
-
 export default function DashboardPage() {
-  const analytics = useQuery(api.analytics.getDashboardAnalyticsByUserId, { userId: HARDCODED_USER_ID });
+  const analytics = useQuery(api.analytics.getDashboardAnalytics);
   const relationshipDist = useQuery(api.analytics.getRelationshipDistribution);
 
   if (!analytics || !relationshipDist) {
@@ -31,15 +28,7 @@ export default function DashboardPage() {
     );
   }
 
-  // Create chart data for network growth (mock data based on total contacts)
-  const networkGrowthData = [
-    { month: "Jul", count: Math.max(0, analytics.totalContacts - 8) },
-    { month: "Aug", count: Math.max(0, analytics.totalContacts - 6) },
-    { month: "Sep", count: Math.max(0, analytics.totalContacts - 4) },
-    { month: "Oct", count: Math.max(0, analytics.totalContacts - 3) },
-    { month: "Nov", count: Math.max(0, analytics.totalContacts - 1) },
-    { month: "Dec", count: analytics.totalContacts },
-  ];
+  const networkGrowthData = analytics.networkGrowth;
 
   const metrics = [
     {

@@ -21,7 +21,6 @@ export function UserSection() {
       >
         <div className="relative">
           <UserButton
-            afterSignOutUrl="/"
             appearance={{
               elements: {
                 avatarBox: "w-10 h-10 ring-2 ring-yellow-400/50 ring-offset-2 ring-offset-gray-900",

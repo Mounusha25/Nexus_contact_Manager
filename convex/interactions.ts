@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { auth } from "./auth";
+import { internal } from "./_generated/api";
 
 // Log a new interaction
 export const logInteraction = mutation({
@@ -52,12 +53,12 @@ export const logInteraction = mutation({
     });
 
     // Recompute relationship score
-    await ctx.scheduler.runAfter(0, "scoring:computeRelationshipScore", {
+    await ctx.scheduler.runAfter(0, internal.scoring.computeRelationshipScore, {
       contactId: args.contactId,
     });
 
     // Update lifecycle stage
-    await ctx.scheduler.runAfter(0, "lifecycle:updateLifecycleStage", {
+    await ctx.scheduler.runAfter(0, internal.lifecycle.updateLifecycleStage, {
       contactId: args.contactId,
     });
 

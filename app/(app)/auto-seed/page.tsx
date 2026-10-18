@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
@@ -8,16 +8,10 @@ import { Card } from "@/components/ui/card";
 
 export default function AutoSeedPage() {
   const [status, setStatus] = useState("Loading...");
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<unknown>(null);
   
   const currentUser = useQuery(api.users.getCurrentUser);
   const seedData = useMutation(api.seed.seedDemoData);
-
-  useEffect(() => {
-    if (currentUser) {
-      setStatus(`Found user: ${currentUser.email}`);
-    }
-  }, [currentUser]);
 
   const handleAutoSeed = async () => {
     if (!currentUser) {
@@ -27,11 +21,11 @@ export default function AutoSeedPage() {
 
     setStatus("Creating demo data...");
     try {
-      const res = await seedData({ userId: currentUser._id });
+      const res = await seedData({});
       setResult(res);
       setStatus("✅ Success! Demo data created.");
-    } catch (error: any) {
-      setStatus(`❌ Error: ${error.message}`);
+    } catch (error: unknown) {
+      setStatus(`❌ Error: ${error instanceof Error ? error.message : "Unknown error"}`);
       setResult(error);
     }
   };
@@ -75,7 +69,7 @@ export default function AutoSeedPage() {
             Click Here to Load Demo Data
           </Button>
 
-          {result && (
+          {result !== null && (
             <div className="mt-6 p-4 bg-muted rounded-lg">
               <h3 className="font-semibold mb-2">Result:</h3>
               <pre className="text-sm overflow-auto">
@@ -90,7 +84,7 @@ export default function AutoSeedPage() {
               <li>✅ 10 diverse professional contacts</li>
               <li>✅ 7 interaction records (meetings, calls, emails)</li>
               <li>✅ 3 pending follow-up tasks</li>
-              <li>✅ 2 notes with AI summaries</li>
+              <li>✅ 2 notes with concise summaries</li>
               <li>✅ Relationship scores from 42-95</li>
               <li>✅ Mix of lifecycle stages (new, active, dormant)</li>
             </ul>

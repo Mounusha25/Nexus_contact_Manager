@@ -104,6 +104,7 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
+    .index("by_user", ["userId"])
     .index("by_user_status", ["userId", "status"])
     .index("by_user_due", ["userId", "dueAt"])
     .index("by_contact", ["contactId"]),
@@ -135,6 +136,7 @@ export default defineSchema({
     ),
     createdAt: v.number(),
   })
+    .index("by_user", ["userId"])
     .index("by_user_status", ["userId", "status"])
     .index("by_primary", ["primaryContactId"])
     .index("by_duplicate", ["duplicateContactId"]),

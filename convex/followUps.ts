@@ -33,7 +33,7 @@ export const getFollowUpsForToday = query({
         const contact = await ctx.db.get(followUp.contactId);
         return {
           ...followUp,
-          contact,
+          contact: contact ?? undefined,
         };
       })
     );
@@ -51,6 +51,15 @@ export const getFollowUpsForContact = query({
   handler: async (ctx, args) => {
     const identity = await auth.getUserIdentity(ctx);
     if (!identity) return [];
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", identity.subject))
+      .unique();
+    if (!user) return [];
+
+    const contact = await ctx.db.get(args.contactId);
+    if (!contact || contact.userId !== user._id) return [];
 
     const followUps = await ctx.db
       .query("followUps")
@@ -167,8 +176,6 @@ export const computeSmartFollowUps = internalMutation({
     const now = Date.now();
     const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
     const fortyFiveDaysAgo = now - 45 * 24 * 60 * 60 * 1000;
-    const sixtyDaysAgo = now - 60 * 24 * 60 * 60 * 1000;
-
     for (const contact of contacts) {
       // Skip archived contacts
       if (contact.lifecycleStage === "archived") continue;

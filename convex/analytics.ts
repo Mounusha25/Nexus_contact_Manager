@@ -1,5 +1,4 @@
 import { query } from "./_generated/server";
-import { v } from "convex/values";
 import { auth } from "./auth";
 
 // Get dashboard analytics
@@ -111,107 +110,6 @@ export const getDashboardAnalytics = query({
       investors,
       pendingFollowUps: pendingFollowUps.length,
       recentInteractions: recentInteractions.length,
-      networkGrowth,
-      industryDistribution,
-      atRiskContacts,
-      avgRecruiterScore,
-    };
-  },
-});
-
-// Get dashboard analytics by user ID (for debugging)
-export const getDashboardAnalyticsByUserId = query({
-  args: {
-    userId: v.id("users"),
-  },
-  handler: async (ctx, args) => {
-    // Get all contacts
-    const contacts = await ctx.db
-      .query("contacts")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .collect();
-
-    // Total contacts
-    const totalContacts = contacts.length;
-
-    // Contacts by lifecycle stage
-    const newContacts = contacts.filter((c) => c.lifecycleStage === "new").length;
-    const activeContacts = contacts.filter((c) => c.lifecycleStage === "active").length;
-    const dormantContacts = contacts.filter((c) => c.lifecycleStage === "dormant").length;
-
-    // Strong relationships (score > 70)
-    const strongRelationships = contacts.filter((c) => c.relationshipScore > 70).length;
-
-    // Contacts by autoType
-    const recruiters = contacts.filter((c) => c.autoType === "recruiter").length;
-    const clients = contacts.filter((c) => c.autoType === "client").length;
-    const investors = contacts.filter((c) => c.autoType === "investor").length;
-
-    // Get pending follow-ups
-    const pendingFollowUps = await ctx.db
-      .query("followUps")
-      .withIndex("by_user_status", (q) =>
-        q.eq("userId", args.userId).eq("status", "pending")
-      )
-      .collect();
-
-    // Get interactions in last 30 days
-    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
-    const recentInteractions = await ctx.db
-      .query("interactions")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .collect();
-    const recentInteractionsCount = recentInteractions.filter(
-      (i) => i.timestamp > thirtyDaysAgo
-    ).length;
-
-    // Network growth (contacts added in last 30 days)
-    const networkGrowth = contacts.filter(
-      (c) => c.createdAt > thirtyDaysAgo
-    ).length;
-
-    // Industry distribution
-    const industryMap: Record<string, number> = {};
-    contacts.forEach((c) => {
-      if (c.industry) {
-        industryMap[c.industry] = (industryMap[c.industry] || 0) + 1;
-      }
-    });
-    const industryDistribution = Object.entries(industryMap)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 5);
-
-    // At-risk relationships
-    const atRiskContacts = contacts
-      .filter((c) => 
-        (c.lifecycleStage === "dormant" && c.relationshipScore > 50) ||
-        (c.relationshipScore > 60 && !c.lastInteractionAt)
-      )
-      .sort((a, b) => b.relationshipScore - a.relationshipScore)
-      .slice(0, 5);
-
-    // Average relationship score with recruiters
-    const recruiterContacts = contacts.filter((c) => c.autoType === "recruiter");
-    const avgRecruiterScore =
-      recruiterContacts.length > 0
-        ? Math.round(
-            recruiterContacts.reduce((sum, c) => sum + c.relationshipScore, 0) /
-              recruiterContacts.length
-          )
-        : 0;
-
-    return {
-      totalContacts,
-      newContacts,
-      activeContacts,
-      dormantContacts,
-      strongRelationships,
-      recruiters,
-      clients,
-      investors,
-      pendingFollowUps: pendingFollowUps.length,
-      recentInteractions: recentInteractionsCount,
       networkGrowth,
       industryDistribution,
       atRiskContacts,

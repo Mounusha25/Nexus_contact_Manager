@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { UserCircle, Mail, Building, Calendar } from "lucide-react";
+import { UserCircle, Mail, Calendar } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 
 export function AccountSection() {

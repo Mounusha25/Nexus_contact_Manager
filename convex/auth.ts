@@ -1,9 +1,16 @@
-import { getAuth } from "@clerk/nextjs/server";
+type Identity = {
+  subject: string;
+  email?: string;
+  name?: string;
+  pictureUrl?: string;
+};
+
+type AuthContext = {
+  auth: {
+    getUserIdentity: () => Promise<Identity | null>;
+  };
+};
 
 export const auth = {
-  getUserIdentity: async (ctx: any) => {
-    // This is a placeholder - will be replaced with actual Convex auth
-    const identity = await ctx.auth.getUserIdentity();
-    return identity;
-  },
+  getUserIdentity: (ctx: AuthContext) => ctx.auth.getUserIdentity(),
 };

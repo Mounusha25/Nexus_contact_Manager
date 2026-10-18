@@ -11,7 +11,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "Smart Contact Manager - Never lose a great connection",
-  description: "Smart contact intelligence for students, job-seekers, and builders. Track relationships, get AI-powered insights, and never miss a follow-up.",
+  description: "Secure contact intelligence for students, job-seekers, and builders. Track relationships and never miss a follow-up.",
 };
 
 export default function RootLayout({

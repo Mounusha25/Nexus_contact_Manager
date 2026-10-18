@@ -170,7 +170,7 @@ export function ContactCard({ contact, index }: ContactCardProps) {
                     )}
                   </div>
 
-                  {/* AI Summary */}
+                  {/* Note summary */}
                   {contact.aiNotesSummary && (
                     <div className="mt-4 p-3 bg-gradient-to-r from-yellow-500/10 to-transparent rounded-lg border border-yellow-500/30">
                       <p className="text-sm text-gray-300 line-clamp-2">

@@ -18,10 +18,10 @@ export default function SeedDataPage() {
     if (!currentUser) return;
     
     try {
-      const result = await seedData({ userId: currentUser._id });
+      const result = await seedData({});
       setMessage(JSON.stringify(result, null, 2));
-    } catch (error: any) {
-      setMessage(`Error: ${error.message}`);
+    } catch (error: unknown) {
+      setMessage(`Error: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   };
 
@@ -30,10 +30,10 @@ export default function SeedDataPage() {
     if (!confirm("Are you sure you want to clear all your data?")) return;
     
     try {
-      const result = await clearData({ userId: currentUser._id });
+      const result = await clearData({});
       setMessage(JSON.stringify(result, null, 2));
-    } catch (error: any) {
-      setMessage(`Error: ${error.message}`);
+    } catch (error: unknown) {
+      setMessage(`Error: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   };
 

@@ -1,15 +1,22 @@
 import { mutation } from "./_generated/server";
-import { v } from "convex/values";
+import { auth } from "./auth";
+import type { Id } from "./_generated/dataModel";
 
 export const seedDemoData = mutation({
-  args: {
-    userId: v.id("users"),
-  },
-  handler: async (ctx, args) => {
+  args: {},
+  handler: async (ctx) => {
+    const identity = await auth.getUserIdentity(ctx);
+    if (!identity) throw new Error("Not authenticated");
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", identity.subject))
+      .unique();
+    if (!user) throw new Error("User not found");
+
     // Check if demo data already exists
     const existingContacts = await ctx.db
       .query("contacts")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
       .collect();
 
     if (existingContacts.length > 0) {
@@ -19,7 +26,7 @@ export const seedDemoData = mutation({
     // Create demo contacts
     const contacts = [
       {
-        userId: args.userId,
+        userId: user._id,
         name: "Sarah Johnson",
         firstName: "Sarah",
         lastName: "Johnson",
@@ -35,7 +42,7 @@ export const seedDemoData = mutation({
         updatedAt: Date.now(),
       },
       {
-        userId: args.userId,
+        userId: user._id,
         name: "Michael Chen",
         firstName: "Michael",
         lastName: "Chen",
@@ -51,7 +58,7 @@ export const seedDemoData = mutation({
         updatedAt: Date.now(),
       },
       {
-        userId: args.userId,
+        userId: user._id,
         name: "Emily Rodriguez",
         firstName: "Emily",
         lastName: "Rodriguez",
@@ -67,7 +74,7 @@ export const seedDemoData = mutation({
         updatedAt: Date.now(),
       },
       {
-        userId: args.userId,
+        userId: user._id,
         name: "David Park",
         firstName: "David",
         lastName: "Park",
@@ -83,7 +90,7 @@ export const seedDemoData = mutation({
         updatedAt: Date.now(),
       },
       {
-        userId: args.userId,
+        userId: user._id,
         name: "Lisa Anderson",
         firstName: "Lisa",
         lastName: "Anderson",
@@ -99,7 +106,7 @@ export const seedDemoData = mutation({
         updatedAt: Date.now(),
       },
       {
-        userId: args.userId,
+        userId: user._id,
         name: "James Wilson",
         firstName: "James",
         lastName: "Wilson",
@@ -115,7 +122,7 @@ export const seedDemoData = mutation({
         updatedAt: Date.now(),
       },
       {
-        userId: args.userId,
+        userId: user._id,
         name: "Maria Garcia",
         firstName: "Maria",
         lastName: "Garcia",
@@ -131,7 +138,7 @@ export const seedDemoData = mutation({
         updatedAt: Date.now(),
       },
       {
-        userId: args.userId,
+        userId: user._id,
         name: "Robert Taylor",
         firstName: "Robert",
         lastName: "Taylor",
@@ -147,7 +154,7 @@ export const seedDemoData = mutation({
         updatedAt: Date.now(),
       },
       {
-        userId: args.userId,
+        userId: user._id,
         name: "Anna Kim",
         firstName: "Anna",
         lastName: "Kim",
@@ -163,7 +170,7 @@ export const seedDemoData = mutation({
         updatedAt: Date.now(),
       },
       {
-        userId: args.userId,
+        userId: user._id,
         name: "Chris Martinez",
         firstName: "Chris",
         lastName: "Martinez",
@@ -180,7 +187,7 @@ export const seedDemoData = mutation({
       },
     ];
 
-    const contactIds: string[] = [];
+    const contactIds: Id<"contacts">[] = [];
     for (const contact of contacts) {
       const contactId = await ctx.db.insert("contacts", contact);
       contactIds.push(contactId);
@@ -190,7 +197,7 @@ export const seedDemoData = mutation({
     const interactions = [
       // Sarah Johnson interactions
       {
-        userId: args.userId,
+        userId: user._id,
         contactId: contactIds[0],
         type: "meeting" as const,
         channel: "in-person" as const,
@@ -198,7 +205,7 @@ export const seedDemoData = mutation({
         timestamp: Date.now() - 2 * 24 * 60 * 60 * 1000,
       },
       {
-        userId: args.userId,
+        userId: user._id,
         contactId: contactIds[0],
         type: "email" as const,
         channel: "email" as const,
@@ -207,7 +214,7 @@ export const seedDemoData = mutation({
       },
       // Michael Chen interactions
       {
-        userId: args.userId,
+        userId: user._id,
         contactId: contactIds[1],
         type: "call" as const,
         channel: "phone" as const,
@@ -215,7 +222,7 @@ export const seedDemoData = mutation({
         timestamp: Date.now() - 1 * 24 * 60 * 60 * 1000,
       },
       {
-        userId: args.userId,
+        userId: user._id,
         contactId: contactIds[1],
         type: "meeting" as const,
         channel: "video-call" as const,
@@ -224,7 +231,7 @@ export const seedDemoData = mutation({
       },
       // Emily Rodriguez interactions
       {
-        userId: args.userId,
+        userId: user._id,
         contactId: contactIds[2],
         type: "email" as const,
         channel: "email" as const,
@@ -233,7 +240,7 @@ export const seedDemoData = mutation({
       },
       // Chris Martinez interactions
       {
-        userId: args.userId,
+        userId: user._id,
         contactId: contactIds[9],
         type: "meeting" as const,
         channel: "video-call" as const,
@@ -241,9 +248,9 @@ export const seedDemoData = mutation({
         timestamp: Date.now() - 1 * 24 * 60 * 60 * 1000,
       },
       {
-        userId: args.userId,
+        userId: user._id,
         contactId: contactIds[9],
-        type: "message" as const,
+        type: "dm" as const,
         channel: "slack" as const,
         notes: "Quick check-in about code review",
         timestamp: Date.now() - 3 * 24 * 60 * 60 * 1000,
@@ -251,13 +258,19 @@ export const seedDemoData = mutation({
     ];
 
     for (const interaction of interactions) {
-      await ctx.db.insert("interactions", interaction);
+      const { notes, ...record } = interaction;
+      await ctx.db.insert("interactions", {
+        ...record,
+        direction: "outbound",
+        content: notes,
+        createdAt: Date.now(),
+      });
     }
 
     // Create demo follow-ups
     const followUps = [
       {
-        userId: args.userId,
+        userId: user._id,
         contactId: contactIds[3], // David Park
         dueDate: Date.now() + 1 * 24 * 60 * 60 * 1000, // Tomorrow
         reason: "Follow up on strategy discussion",
@@ -265,7 +278,7 @@ export const seedDemoData = mutation({
         urgency: "medium" as const,
       },
       {
-        userId: args.userId,
+        userId: user._id,
         contactId: contactIds[4], // Lisa Anderson
         dueDate: Date.now(), // Today
         reason: "Check in - haven't talked in a while",
@@ -273,7 +286,7 @@ export const seedDemoData = mutation({
         urgency: "high" as const,
       },
       {
-        userId: args.userId,
+        userId: user._id,
         contactId: contactIds[7], // Robert Taylor
         dueDate: Date.now() + 2 * 24 * 60 * 60 * 1000, // In 2 days
         reason: "Send updated pitch deck",
@@ -283,29 +296,42 @@ export const seedDemoData = mutation({
     ];
 
     for (const followUp of followUps) {
-      await ctx.db.insert("followUps", followUp);
+      const { dueDate, urgency: _urgency, ...record } = followUp;
+      void _urgency;
+      await ctx.db.insert("followUps", {
+        ...record,
+        dueAt: dueDate,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
     }
 
     // Create demo notes for some contacts
     const notes = [
       {
-        userId: args.userId,
+        userId: user._id,
         contactId: contactIds[1], // Michael Chen
         content: "Investment meeting went well. He's interested in leading our seed round. Mentioned he wants to see traction metrics next month.",
         aiSummary: "Positive investor meeting - interested in leading seed round, wants traction data",
         timestamp: Date.now() - 5 * 24 * 60 * 60 * 1000,
       },
       {
-        userId: args.userId,
+        userId: user._id,
         contactId: contactIds[6], // Maria Garcia
-        content: "Discussed EdTech partnership. Her org has 50K+ students who could benefit from our platform. Need to prepare proposal for board meeting.",
-        aiSummary: "Partnership opportunity with 50K student reach - board proposal needed",
+        content: "Discussed an EdTech partnership and the need to prepare a proposal for the next board meeting.",
+        aiSummary: "EdTech partnership opportunity - board proposal needed",
         timestamp: Date.now() - 3 * 24 * 60 * 60 * 1000,
       },
     ];
 
     for (const note of notes) {
-      await ctx.db.insert("notes", note);
+      const { content, timestamp, ...record } = note;
+      await ctx.db.insert("notes", {
+        ...record,
+        rawText: content,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      });
     }
 
     return { 
@@ -320,14 +346,20 @@ export const seedDemoData = mutation({
 
 // Helper mutation to clear all demo data
 export const clearDemoData = mutation({
-  args: {
-    userId: v.id("users"),
-  },
-  handler: async (ctx, args) => {
+  args: {},
+  handler: async (ctx) => {
+    const identity = await auth.getUserIdentity(ctx);
+    if (!identity) throw new Error("Not authenticated");
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", identity.subject))
+      .unique();
+    if (!user) throw new Error("User not found");
+
     // Delete all contacts (cascade will handle related data)
     const contacts = await ctx.db
       .query("contacts")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
       .collect();
 
     for (const contact of contacts) {
@@ -337,7 +369,7 @@ export const clearDemoData = mutation({
     // Delete all interactions
     const interactions = await ctx.db
       .query("interactions")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
       .collect();
 
     for (const interaction of interactions) {
@@ -347,7 +379,7 @@ export const clearDemoData = mutation({
     // Delete all follow-ups
     const followUps = await ctx.db
       .query("followUps")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
       .collect();
 
     for (const followUp of followUps) {
@@ -357,11 +389,19 @@ export const clearDemoData = mutation({
     // Delete all notes
     const notes = await ctx.db
       .query("notes")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
       .collect();
 
     for (const note of notes) {
       await ctx.db.delete(note._id);
+    }
+
+    const dedupeCandidates = await ctx.db
+      .query("dedupeCandidates")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+    for (const candidate of dedupeCandidates) {
+      await ctx.db.delete(candidate._id);
     }
 
     return {
@@ -371,6 +411,7 @@ export const clearDemoData = mutation({
         interactions: interactions.length,
         followUps: followUps.length,
         notes: notes.length,
+        dedupeCandidates: dedupeCandidates.length,
       },
     };
   },

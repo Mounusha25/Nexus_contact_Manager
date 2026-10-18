@@ -13,9 +13,6 @@ type Message = {
   content: string;
 };
 
-// TEMPORARY: Hardcoded user ID for testing
-const HARDCODED_USER_ID = "js741ht0frav0t82dveqk94cv17ybpe1" as any;
-
 const EXAMPLE_QUERIES = [
   "Who should I reconnect with this week?",
   "Show me all dormant contacts in tech",
@@ -32,8 +29,8 @@ export default function AssistantPage() {
   const chatWithAssistant = useAction(api.aiAssistant.chatWithAssistant);
   
   // Load contacts and analytics for context
-  const contacts = useQuery(api.contacts.getContactsByUserId, { userId: HARDCODED_USER_ID });
-  const analytics = useQuery(api.analytics.getDashboardAnalyticsByUserId, { userId: HARDCODED_USER_ID });
+  const contacts = useQuery(api.contacts.getContacts, {});
+  const analytics = useQuery(api.analytics.getDashboardAnalytics);
 
   const contextLoaded = !!contacts && !!analytics;
 
@@ -52,10 +49,7 @@ export default function AssistantPage() {
     setIsLoading(true);
 
     try {
-      const response = await chatWithAssistant({ 
-        messages: newMessages,
-        userId: HARDCODED_USER_ID 
-      });
+      const response = await chatWithAssistant({ messages: newMessages });
       setMessages([...newMessages, response]);
     } catch (error) {
       console.error("Error chatting with assistant:", error);

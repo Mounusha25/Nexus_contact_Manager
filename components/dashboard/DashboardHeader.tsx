@@ -21,7 +21,7 @@ export function DashboardHeader() {
         <h1 className="text-4xl font-bold bg-gradient-to-r from-yellow-400 to-yellow-600 bg-clip-text text-transparent">
           Dashboard
         </h1>
-        <p className="text-gray-400 mt-1">Welcome back! Here's your network overview.</p>
+        <p className="text-gray-400 mt-1">Welcome back! Here&apos;s your network overview.</p>
       </div>
     </motion.div>
   );

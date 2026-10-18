@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
+import { Show, SignInButton, UserButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Users, Sparkles, Bell, BarChart3, Shield, Brain, Zap, TrendingUp, Network, Target, MessageSquare } from "lucide-react";
+import { ArrowRight, Sparkles, Bell, BarChart3, Shield, Brain, Zap, TrendingUp, Network, Target, MessageSquare } from "lucide-react";
 import { motion } from "framer-motion";
 import { useState, useRef, useEffect } from "react";
 
@@ -48,7 +48,7 @@ export default function Home() {
             </span>
           </motion.div>
           <div className="flex items-center space-x-4">
-            <SignedOut>
+            <Show when="signed-out">
               <SignInButton mode="modal">
                 <Button variant="ghost" className="text-yellow-400 hover:text-yellow-300">Sign In</Button>
               </SignInButton>
@@ -57,13 +57,13 @@ export default function Home() {
                   Get Started
                 </Button>
               </SignInButton>
-            </SignedOut>
-            <SignedIn>
+            </Show>
+            <Show when="signed-in">
               <Link href="/dashboard">
                 <Button variant="ghost" className="text-yellow-400">Dashboard</Button>
               </Link>
-              <UserButton afterSignOutUrl="/" />
-            </SignedIn>
+              <UserButton />
+            </Show>
           </div>
         </div>
       </motion.nav>
@@ -105,8 +105,7 @@ export default function Home() {
                 transition={{ duration: 0.6, delay: 0.5 }}
                 className="text-xl md:text-2xl text-gray-300 leading-relaxed font-light"
               >
-                The intelligent CRM built for ambitious professionals. Never lose touch with valuable connections.
-                Powered by AI to help you build relationships that matter.
+                The intelligent CRM built for ambitious professionals. Track relationship health and never lose touch with valuable connections.
               </motion.p>
 
               <motion.div
@@ -115,7 +114,7 @@ export default function Home() {
                 transition={{ duration: 0.6, delay: 0.7 }}
                 className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-4"
               >
-                <SignedOut>
+                <Show when="signed-out">
                   <SignInButton mode="modal">
                     <Button
                       size="lg"
@@ -125,8 +124,8 @@ export default function Home() {
                       <ArrowRight className="ml-2 h-6 w-6" />
                     </Button>
                   </SignInButton>
-                </SignedOut>
-                <SignedIn>
+                </Show>
+                <Show when="signed-in">
                   <Link href="/dashboard">
                     <Button
                       size="lg"
@@ -136,7 +135,7 @@ export default function Home() {
                       <ArrowRight className="ml-2 h-6 w-6" />
                     </Button>
                   </Link>
-                </SignedIn>
+                </Show>
                 <motion.div whileHover={{ scale: 1.05 }}>
                   <Link href="#features">
                     <Button
@@ -158,9 +157,9 @@ export default function Home() {
                 className="grid grid-cols-3 gap-8 pt-8"
               >
                 {[
-                  { label: "Connections Tracked", value: "10K+" },
-                  { label: "AI Insights", value: "50K+" },
-                  { label: "Success Rate", value: "95%" },
+                  { label: "Automated Tests", value: "18" },
+                  { label: "Logic Coverage", value: "96.7%" },
+                  { label: "Indexed Tables", value: "6" },
                 ].map((stat, i) => (
                   <div key={i} className="text-center">
                     <div className="text-3xl font-bold text-yellow-400">{stat.value}</div>
@@ -263,7 +262,7 @@ export default function Home() {
               </span>
             </h2>
             <p className="text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
-              Cutting-edge AI technology meets intuitive design to transform how you manage professional relationships
+              Transparent relationship rules meet an intuitive interface for managing professional connections
             </p>
           </motion.div>
 
@@ -273,7 +272,7 @@ export default function Home() {
                 icon: Brain,
                 title: "Intelligent Relationship Scoring",
                 description:
-                  "Our AI analyzes interaction frequency, recency, and engagement quality to give each contact a dynamic relationship score. Watch relationships strengthen or identify connections that need attention before they fade.",
+                  "A documented scoring model combines interaction frequency, 30/60/90-day recency decay, channel quality, and two-way communication into a dynamic 0-100 score.",
                 color: "from-yellow-400 to-orange-500",
                 gradient: "from-yellow-500/10 to-orange-500/10",
               },
@@ -281,15 +280,15 @@ export default function Home() {
                 icon: Bell,
                 title: "Never Miss a Follow-Up",
                 description:
-                  "Smart reminders that learn your patterns. Get notified when key connections go cold, when it's time to check in, or when there's an opportunity to strengthen a valuable relationship.",
+                  "Threshold-based reminders flag high-value relationships that have gone quiet and keep pending follow-ups visible until they are completed or skipped.",
                 color: "from-yellow-400 to-yellow-600",
                 gradient: "from-yellow-500/10 to-yellow-600/10",
               },
               {
                 icon: MessageSquare,
-                title: "AI Networking Coach",
+                title: "Private Networking Coach",
                 description:
-                  "Chat with Claude AI to get personalized networking advice, draft perfect follow-up emails, identify hidden opportunities, and receive strategic insights about your professional network.",
+                  "Use an account-scoped assistant to rank strong relationships, find recruiters, identify reconnection priorities, draft check-ins, and summarize your network without sending contact data to an external model.",
                 color: "from-purple-400 to-pink-600",
                 gradient: "from-purple-500/10 to-pink-500/10",
               },
@@ -297,7 +296,7 @@ export default function Home() {
                 icon: Target,
                 title: "Auto-Categorization",
                 description:
-                  "Machine learning automatically tags contacts as recruiters, clients, investors, or mentors based on profile data and communication patterns. No manual sorting required.",
+                  "Transparent title and company rules classify contacts as recruiters, clients, or investors. The behavior is deterministic, testable, and easy to audit.",
                 color: "from-blue-400 to-cyan-600",
                 gradient: "from-blue-500/10 to-cyan-500/10",
               },
@@ -313,7 +312,7 @@ export default function Home() {
                 icon: Shield,
                 title: "Privacy-First Architecture",
                 description:
-                  "Bank-level encryption, zero-knowledge architecture, and complete data ownership. Your relationships are sensitive—we treat them that way. Never used for AI training.",
+                  "Clerk-backed identity and server-side Convex ownership checks prevent one signed-in account from reading or modifying another account's CRM records.",
                 color: "from-gray-400 to-slate-600",
                 gradient: "from-gray-500/10 to-slate-500/10",
               },
@@ -321,7 +320,7 @@ export default function Home() {
                 icon: Network,
                 title: "Lifecycle Stage Tracking",
                 description:
-                  "Automatically tracks contacts through stages: New, Active, Engaged, Dormant. See at a glance who you're connected with and who needs re-engagement before the relationship cools.",
+                  "Automatically tracks contacts through New, Active, Dormant, and Archived stages. See who needs re-engagement before a relationship cools.",
                 color: "from-indigo-400 to-purple-600",
                 gradient: "from-indigo-500/10 to-purple-500/10",
               },
@@ -329,7 +328,7 @@ export default function Home() {
                 icon: Zap,
                 title: "Instant Search & Filters",
                 description:
-                  "Lightning-fast semantic search across all contacts. Filter by industry, relationship strength, last interaction, or custom tags. Find exactly who you need, when you need them.",
+                  "Indexed contact queries and filters cover names, companies, email addresses, lifecycle stages, industries, contact types, and custom tags.",
                 color: "from-yellow-400 to-red-600",
                 gradient: "from-yellow-500/10 to-red-500/10",
               },
@@ -337,7 +336,7 @@ export default function Home() {
                 icon: BarChart3,
                 title: "Interaction Timeline",
                 description:
-                  "Complete history of every email, call, meeting, and message. AI-powered summaries and sentiment analysis help you understand relationship dynamics over time.",
+                  "Record email, call, meeting, direct-message, and other interactions with direction, channel, notes, and timestamps in a per-contact timeline.",
                 color: "from-pink-400 to-rose-600",
                 gradient: "from-pink-500/10 to-rose-500/10",
               },
@@ -466,7 +465,7 @@ export default function Home() {
               whileHover={{ scale: 1.05 }}
               className="inline-block"
             >
-              <SignedOut>
+              <Show when="signed-out">
                 <SignInButton mode="modal">
                   <Button
                     size="lg"
@@ -476,8 +475,8 @@ export default function Home() {
                     <ArrowRight className="ml-3 h-7 w-7" />
                   </Button>
                 </SignInButton>
-              </SignedOut>
-              <SignedIn>
+              </Show>
+              <Show when="signed-in">
                 <Link href="/dashboard">
                   <Button
                     size="lg"
@@ -487,7 +486,7 @@ export default function Home() {
                     <ArrowRight className="ml-3 h-7 w-7" />
                   </Button>
                 </Link>
-              </SignedIn>
+              </Show>
             </motion.div>
 
             <motion.div

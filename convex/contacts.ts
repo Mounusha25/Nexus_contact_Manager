@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { auth } from "./auth";
+import { classifyContact } from "../lib/crm/contact-intelligence";
 
 /**
  * Contact Management API
@@ -51,21 +52,6 @@ export const createContact = mutation({
     });
 
     return contactId;
-  },
-});
-
-// Get contacts by user ID (for debugging)
-export const getContactsByUserId = query({
-  args: {
-    userId: v.id("users"),
-  },
-  handler: async (ctx, args) => {
-    const contacts = await ctx.db
-      .query("contacts")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .collect();
-    
-    return contacts;
   },
 });
 
@@ -183,12 +169,12 @@ export const updateContact = mutation({
     }
 
     const { id, ...updates } = args;
-    await ctx.db.patch(args.id, {
+    await ctx.db.patch(id, {
       ...updates,
       updatedAt: Date.now(),
     });
 
-    return args.id;
+    return id;
   },
 });
 
@@ -236,6 +222,22 @@ export const deleteContact = mutation({
       await ctx.db.delete(followUp._id);
     }
 
+    const primaryCandidates = await ctx.db
+      .query("dedupeCandidates")
+      .withIndex("by_primary", (q) => q.eq("primaryContactId", args.id))
+      .collect();
+    const duplicateCandidates = await ctx.db
+      .query("dedupeCandidates")
+      .withIndex("by_duplicate", (q) => q.eq("duplicateContactId", args.id))
+      .collect();
+    const candidateIds = new Set([
+      ...primaryCandidates.map((candidate) => candidate._id),
+      ...duplicateCandidates.map((candidate) => candidate._id),
+    ]);
+    for (const candidateId of candidateIds) {
+      await ctx.db.delete(candidateId);
+    }
+
     await ctx.db.delete(args.id);
     return args.id;
   },
@@ -245,41 +247,21 @@ export const deleteContact = mutation({
 export const autoTag = mutation({
   args: { contactId: v.id("contacts") },
   handler: async (ctx, args) => {
+    const identity = await auth.getUserIdentity(ctx);
+    if (!identity) throw new Error("Not authenticated");
+
     const contact = await ctx.db.get(args.contactId);
-    if (!contact) return;
+    if (!contact) throw new Error("Contact not found");
 
-    let autoType: "recruiter" | "client" | "investor" | "friend" | "other" = "other";
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", identity.subject))
+      .unique();
+    if (!user || contact.userId !== user._id) throw new Error("Unauthorized");
+
+    const autoType = classifyContact(contact.title, contact.company);
     const newTags: string[] = [...contact.tags];
-
-    // Detect recruiter
-    const title = contact.title?.toLowerCase() || "";
-    const company = contact.company?.toLowerCase() || "";
-    if (
-      title.includes("recruiter") ||
-      title.includes("talent") ||
-      title.includes("hiring") ||
-      company.includes("recruiting")
-    ) {
-      autoType = "recruiter";
-      if (!newTags.includes("recruiter")) newTags.push("recruiter");
-    }
-
-    // Detect investor
-    if (
-      title.includes("investor") ||
-      title.includes("vc") ||
-      title.includes("venture") ||
-      title.includes("partner") && company.includes("capital")
-    ) {
-      autoType = "investor";
-      if (!newTags.includes("investor")) newTags.push("investor");
-    }
-
-    // Detect client
-    if (title.includes("client") || title.includes("customer")) {
-      autoType = "client";
-      if (!newTags.includes("client")) newTags.push("client");
-    }
+    if (autoType !== "other" && !newTags.includes(autoType)) newTags.push(autoType);
 
     await ctx.db.patch(args.contactId, {
       autoType,

@@ -1,42 +1,8 @@
 import { mutation, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { auth } from "./auth";
-
-// Levenshtein distance for fuzzy string matching
-function levenshteinDistance(str1: string, str2: string): number {
-  const matrix: number[][] = [];
-
-  for (let i = 0; i <= str2.length; i++) {
-    matrix[i] = [i];
-  }
-
-  for (let j = 0; j <= str1.length; j++) {
-    matrix[0][j] = j;
-  }
-
-  for (let i = 1; i <= str2.length; i++) {
-    for (let j = 1; j <= str1.length; j++) {
-      if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
-        matrix[i][j] = matrix[i - 1][j - 1];
-      } else {
-        matrix[i][j] = Math.min(
-          matrix[i - 1][j - 1] + 1,
-          matrix[i][j - 1] + 1,
-          matrix[i - 1][j] + 1
-        );
-      }
-    }
-  }
-
-  return matrix[str2.length][str1.length];
-}
-
-// Calculate similarity score (0-1)
-function similarityScore(str1: string, str2: string): number {
-  const distance = levenshteinDistance(str1.toLowerCase(), str2.toLowerCase());
-  const maxLength = Math.max(str1.length, str2.length);
-  return 1 - distance / maxLength;
-}
+import { calculateDuplicateScore, mergeUnique } from "../lib/crm/contact-intelligence";
+import { internal } from "./_generated/api";
 
 // Detect duplicates for a contact
 export const detectDuplicates = internalMutation({
@@ -54,47 +20,7 @@ export const detectDuplicates = internalMutation({
     for (const otherContact of allContacts) {
       if (otherContact._id === contact._id) continue;
 
-      let confidence = 0;
-      const reasons: string[] = [];
-
-      // Check for exact email match
-      const sharedEmails = contact.emails.filter((email) =>
-        otherContact.emails.includes(email)
-      );
-      if (sharedEmails.length > 0) {
-        confidence += 0.8;
-        reasons.push("Same email");
-      }
-
-      // Check for similar names
-      const nameSimilarity = similarityScore(contact.name, otherContact.name);
-      if (nameSimilarity > 0.85) {
-        confidence += 0.6 * nameSimilarity;
-        reasons.push("Similar name");
-      }
-
-      // Check for same company + similar name
-      if (
-        contact.company &&
-        otherContact.company &&
-        contact.company.toLowerCase() === otherContact.company.toLowerCase() &&
-        nameSimilarity > 0.7
-      ) {
-        confidence += 0.5;
-        reasons.push("Same company");
-      }
-
-      // Check for shared phone
-      const sharedPhones = contact.phones.filter((phone) =>
-        otherContact.phones.includes(phone)
-      );
-      if (sharedPhones.length > 0) {
-        confidence += 0.7;
-        reasons.push("Same phone");
-      }
-
-      // Cap confidence at 1.0
-      confidence = Math.min(confidence, 1.0);
+      const { confidence } = calculateDuplicateScore(contact, otherContact);
 
       // Only create candidate if confidence > 0.5
       if (confidence > 0.5) {
@@ -202,15 +128,9 @@ export const mergeContacts = mutation({
     }
 
     // Merge data
-    const mergedEmails = Array.from(
-      new Set([...(args.fieldPreferences.emails || primary.emails)])
-    );
-    const mergedPhones = Array.from(
-      new Set([...(args.fieldPreferences.phones || primary.phones)])
-    );
-    const mergedTags = Array.from(
-      new Set([...(args.fieldPreferences.tags || primary.tags)])
-    );
+    const mergedEmails = mergeUnique(primary.emails, duplicate.emails, args.fieldPreferences.emails || []);
+    const mergedPhones = mergeUnique(primary.phones, duplicate.phones, args.fieldPreferences.phones || []);
+    const mergedTags = mergeUnique(primary.tags, duplicate.tags, args.fieldPreferences.tags || []);
 
     await ctx.db.patch(args.primaryId, {
       name: args.fieldPreferences.name || primary.name,
@@ -252,18 +172,25 @@ export const mergeContacts = mutation({
     // Delete duplicate contact
     await ctx.db.delete(args.duplicateId);
 
-    // Mark all related dedup candidates as merged
-    const candidates = await ctx.db
+    // Remove every suggestion that points at the deleted duplicate.
+    const primaryCandidates = await ctx.db
       .query("dedupeCandidates")
-      .withIndex("by_primary", (q) => q.eq("primaryContactId", args.primaryId))
-      .filter((q) => q.eq(q.field("duplicateContactId"), args.duplicateId))
+      .withIndex("by_primary", (q) => q.eq("primaryContactId", args.duplicateId))
       .collect();
-    for (const candidate of candidates) {
-      await ctx.db.patch(candidate._id, { status: "merged" });
+    const duplicateCandidates = await ctx.db
+      .query("dedupeCandidates")
+      .withIndex("by_duplicate", (q) => q.eq("duplicateContactId", args.duplicateId))
+      .collect();
+    const candidateIds = new Set([
+      ...primaryCandidates.map((candidate) => candidate._id),
+      ...duplicateCandidates.map((candidate) => candidate._id),
+    ]);
+    for (const candidateId of candidateIds) {
+      await ctx.db.delete(candidateId);
     }
 
     // Recompute relationship score for merged contact
-    await ctx.scheduler.runAfter(0, "scoring:computeRelationshipScore", {
+    await ctx.scheduler.runAfter(0, internal.scoring.computeRelationshipScore, {
       contactId: args.primaryId,
     });
 
