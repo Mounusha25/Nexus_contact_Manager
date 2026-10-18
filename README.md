@@ -154,7 +154,15 @@ NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
 CLERK_SECRET_KEY=
 NEXT_PUBLIC_CONVEX_URL=
 NEXT_PUBLIC_CONVEX_SITE_URL=
-CLERK_JWT_ISSUER_DOMAIN=
+CLERK_FRONTEND_API_URL=
+```
+
+Convex backend functions do not read `.env.local`. Configure the same Clerk
+Frontend API URL on each Convex deployment before syncing `auth.config.ts`:
+
+```bash
+npx convex env set CLERK_FRONTEND_API_URL https://your-instance.clerk.accounts.dev
+npx convex dev
 ```
 
 Open `http://localhost:3000`, sign in, and use `/seed-data` if you want an
