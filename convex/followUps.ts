@@ -1,6 +1,8 @@
 import { mutation, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { auth } from "./auth";
+import { recordAuditEvent } from "./lib/audit";
+import { requireCurrentAccount, requireOwnership } from "./lib/authorization";
 
 // Get today's follow-ups for a user
 export const getFollowUpsForToday = query({
@@ -79,20 +81,11 @@ export const createFollowUp = mutation({
     dueAt: v.number(),
   },
   handler: async (ctx, args) => {
-    const identity = await auth.getUserIdentity(ctx);
-    if (!identity) throw new Error("Not authenticated");
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", identity.subject))
-      .unique();
-
-    if (!user) throw new Error("User not found");
+    const { actorClerkUserId, user } = await requireCurrentAccount(ctx);
 
     const contact = await ctx.db.get(args.contactId);
-    if (!contact || contact.userId !== user._id) {
-      throw new Error("Contact not found");
-    }
+    if (!contact) throw new Error("Contact not found");
+    requireOwnership(user._id, contact.userId);
 
     const followUpId = await ctx.db.insert("followUps", {
       contactId: args.contactId,
@@ -104,6 +97,15 @@ export const createFollowUp = mutation({
       updatedAt: Date.now(),
     });
 
+    await recordAuditEvent(ctx, {
+      userId: user._id,
+      actorClerkUserId,
+      action: "follow_up.created",
+      entityType: "follow_up",
+      entityId: followUpId,
+      summary: `Created follow-up for ${contact.name}`,
+    });
+
     return followUpId;
   },
 });
@@ -112,24 +114,24 @@ export const createFollowUp = mutation({
 export const markFollowUpDone = mutation({
   args: { id: v.id("followUps") },
   handler: async (ctx, args) => {
-    const identity = await auth.getUserIdentity(ctx);
-    if (!identity) throw new Error("Not authenticated");
+    const { actorClerkUserId, user } = await requireCurrentAccount(ctx);
 
     const followUp = await ctx.db.get(args.id);
     if (!followUp) throw new Error("Follow-up not found");
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", identity.subject))
-      .unique();
-
-    if (!user || followUp.userId !== user._id) {
-      throw new Error("Unauthorized");
-    }
+    requireOwnership(user._id, followUp.userId);
 
     await ctx.db.patch(args.id, {
       status: "done",
       updatedAt: Date.now(),
+    });
+
+    await recordAuditEvent(ctx, {
+      userId: user._id,
+      actorClerkUserId,
+      action: "follow_up.completed",
+      entityType: "follow_up",
+      entityId: args.id,
+      summary: "Marked follow-up complete",
     });
 
     return args.id;
@@ -140,24 +142,24 @@ export const markFollowUpDone = mutation({
 export const skipFollowUp = mutation({
   args: { id: v.id("followUps") },
   handler: async (ctx, args) => {
-    const identity = await auth.getUserIdentity(ctx);
-    if (!identity) throw new Error("Not authenticated");
+    const { actorClerkUserId, user } = await requireCurrentAccount(ctx);
 
     const followUp = await ctx.db.get(args.id);
     if (!followUp) throw new Error("Follow-up not found");
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", identity.subject))
-      .unique();
-
-    if (!user || followUp.userId !== user._id) {
-      throw new Error("Unauthorized");
-    }
+    requireOwnership(user._id, followUp.userId);
 
     await ctx.db.patch(args.id, {
       status: "skipped",
       updatedAt: Date.now(),
+    });
+
+    await recordAuditEvent(ctx, {
+      userId: user._id,
+      actorClerkUserId,
+      action: "follow_up.skipped",
+      entityType: "follow_up",
+      entityId: args.id,
+      summary: "Skipped follow-up",
     });
 
     return args.id;

@@ -18,8 +18,8 @@ for the user interface.
 ## What is implemented
 
 - Authenticated contact CRUD with ownership checks in Convex mutations.
-- Per-user contacts, interactions, notes, follow-ups, analytics, and duplicate
-  candidates across **6 indexed tables**.
+- Per-user contacts, interactions, notes, follow-ups, analytics, duplicate
+  candidates, and audit events across **7 indexed tables**.
 - A deterministic **0-100 relationship score** based on channel quality,
   30/60/90-day recency decay, interaction frequency, and bidirectional contact.
 - Lifecycle classification into `new`, `active`, `dormant`, and `archived`.
@@ -30,6 +30,7 @@ for the user interface.
 - Account-scoped dashboard analytics and a deterministic local networking
   assistant that does not send contact data to a third-party model.
 - Authenticated demo-data seeding for local evaluation.
+- An account-scoped, append-only audit trail for security-relevant mutations.
 
 ## Security model
 
@@ -50,6 +51,11 @@ and prevented cross-account follow-up reads. It also upgraded:
 `npm run security:audit` fails CI if a critical production dependency advisory
 is detected. This is a dependency gate, not a claim that the application has
 completed an external security audit.
+
+Milestone 2 centralizes mutation authorization, returns non-enumerating errors
+for cross-account resources, and records audit events in the same transaction
+as each successful change. Audit history remains after a contact is deleted;
+there is intentionally no public mutation for editing or deleting audit events.
 
 ## Relationship scoring
 
@@ -78,6 +84,8 @@ The repository currently passes:
 | Check | Result |
 | --- | --- |
 | Native Node test runner | **18/18 tests passing** |
+| Convex authorization integration suite | **5/5 tests passing** |
+| Total automated tests | **23/23 tests passing** |
 | CRM logic line coverage | **96.73%** |
 | CRM logic branch coverage | **92.75%** |
 | CRM logic function coverage | **100%** |
@@ -117,6 +125,7 @@ Next.js 16 App Router
 Convex server functions
   |-- resolve authenticated Clerk identity
   |-- enforce record ownership
+  |-- append account-scoped audit events in the mutation transaction
   |-- run CRM scoring and lifecycle rules
   `-- read/write indexed Convex tables
 ```
@@ -156,8 +165,9 @@ account-scoped demo dataset.
 ```text
 app/                         Next.js routes
 components/                  UI and Convex provider
-convex/                      schema and server functions
+convex/                      schema, server functions, and integration tests
 convex/_generated/           reproducible typed Convex bindings
+convex/lib/                  authorization and append-only audit helpers
 lib/crm/                     deterministic CRM business rules
 tests/                       native Node unit tests
 .github/workflows/ci.yml     test, lint, build, and security gate
@@ -167,6 +177,4 @@ tests/                       native Node unit tests
 
 Nexus is a portfolio application, not a deployed enterprise CRM. It does not
 currently claim organization-level multi-tenancy, billing, email-provider
-integration, third-party penetration testing, or production user volume. The
-next planned milestone is an append-only audit log and integration tests for
-authorization boundaries.
+integration, third-party penetration testing, or production user volume.

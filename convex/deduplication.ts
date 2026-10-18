@@ -3,6 +3,8 @@ import { v } from "convex/values";
 import { auth } from "./auth";
 import { calculateDuplicateScore, mergeUnique } from "../lib/crm/contact-intelligence";
 import { internal } from "./_generated/api";
+import { recordAuditEvent } from "./lib/audit";
+import { requireCurrentAccount, requireOwnership } from "./lib/authorization";
 
 // Detect duplicates for a contact
 export const detectDuplicates = internalMutation({
@@ -110,22 +112,14 @@ export const mergeContacts = mutation({
     }),
   },
   handler: async (ctx, args) => {
-    const identity = await auth.getUserIdentity(ctx);
-    if (!identity) throw new Error("Not authenticated");
+    const { actorClerkUserId, user } = await requireCurrentAccount(ctx);
 
     const primary = await ctx.db.get(args.primaryId);
     const duplicate = await ctx.db.get(args.duplicateId);
 
     if (!primary || !duplicate) throw new Error("Contact not found");
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", identity.subject))
-      .unique();
-
-    if (!user || primary.userId !== user._id || duplicate.userId !== user._id) {
-      throw new Error("Unauthorized");
-    }
+    requireOwnership(user._id, primary.userId);
+    requireOwnership(user._id, duplicate.userId);
 
     // Merge data
     const mergedEmails = mergeUnique(primary.emails, duplicate.emails, args.fieldPreferences.emails || []);
@@ -194,6 +188,15 @@ export const mergeContacts = mutation({
       contactId: args.primaryId,
     });
 
+    await recordAuditEvent(ctx, {
+      userId: user._id,
+      actorClerkUserId,
+      action: "contacts.merged",
+      entityType: "contact",
+      entityId: args.primaryId,
+      summary: `Merged ${duplicate.name} into ${primary.name}`,
+    });
+
     return args.primaryId;
   },
 });
@@ -202,22 +205,21 @@ export const mergeContacts = mutation({
 export const ignoreDuplicate = mutation({
   args: { candidateId: v.id("dedupeCandidates") },
   handler: async (ctx, args) => {
-    const identity = await auth.getUserIdentity(ctx);
-    if (!identity) throw new Error("Not authenticated");
+    const { actorClerkUserId, user } = await requireCurrentAccount(ctx);
 
     const candidate = await ctx.db.get(args.candidateId);
     if (!candidate) throw new Error("Candidate not found");
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", identity.subject))
-      .unique();
-
-    if (!user || candidate.userId !== user._id) {
-      throw new Error("Unauthorized");
-    }
+    requireOwnership(user._id, candidate.userId);
 
     await ctx.db.patch(args.candidateId, { status: "ignored" });
+    await recordAuditEvent(ctx, {
+      userId: user._id,
+      actorClerkUserId,
+      action: "duplicate.ignored",
+      entityType: "duplicate_candidate",
+      entityId: args.candidateId,
+      summary: "Ignored duplicate suggestion",
+    });
     return args.candidateId;
   },
 });

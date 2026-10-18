@@ -2,6 +2,8 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { auth } from "./auth";
 import { internal } from "./_generated/api";
+import { recordAuditEvent } from "./lib/audit";
+import { requireCurrentAccount, requireOwnership } from "./lib/authorization";
 
 // Log a new interaction
 export const logInteraction = mutation({
@@ -20,20 +22,11 @@ export const logInteraction = mutation({
     timestamp: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const identity = await auth.getUserIdentity(ctx);
-    if (!identity) throw new Error("Not authenticated");
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", identity.subject))
-      .unique();
-
-    if (!user) throw new Error("User not found");
+    const { actorClerkUserId, user } = await requireCurrentAccount(ctx);
 
     const contact = await ctx.db.get(args.contactId);
-    if (!contact || contact.userId !== user._id) {
-      throw new Error("Contact not found");
-    }
+    if (!contact) throw new Error("Contact not found");
+    requireOwnership(user._id, contact.userId);
 
     const interactionId = await ctx.db.insert("interactions", {
       contactId: args.contactId,
@@ -60,6 +53,15 @@ export const logInteraction = mutation({
     // Update lifecycle stage
     await ctx.scheduler.runAfter(0, internal.lifecycle.updateLifecycleStage, {
       contactId: args.contactId,
+    });
+
+    await recordAuditEvent(ctx, {
+      userId: user._id,
+      actorClerkUserId,
+      action: "interaction.created",
+      entityType: "interaction",
+      entityId: interactionId,
+      summary: `Logged ${args.type} interaction for ${contact.name}`,
     });
 
     return interactionId;

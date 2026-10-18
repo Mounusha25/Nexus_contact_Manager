@@ -8,6 +8,7 @@ import type { ApiFromModules, FilterApi, FunctionReference } from "convex/server
 import { anyApi } from "convex/server";
 import type * as aiAssistant from "../aiAssistant.js";
 import type * as analytics from "../analytics.js";
+import type * as auditEvents from "../auditEvents.js";
 import type * as contacts from "../contacts.js";
 import type * as deduplication from "../deduplication.js";
 import type * as followUps from "../followUps.js";
@@ -20,6 +21,7 @@ import type * as users from "../users.js";
 const fullApi: ApiFromModules<{
   aiAssistant: typeof aiAssistant;
   analytics: typeof analytics;
+  auditEvents: typeof auditEvents;
   contacts: typeof contacts;
   deduplication: typeof deduplication;
   followUps: typeof followUps;

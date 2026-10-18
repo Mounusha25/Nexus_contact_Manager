@@ -1,17 +1,12 @@
 import { mutation } from "./_generated/server";
-import { auth } from "./auth";
 import type { Id } from "./_generated/dataModel";
+import { recordAuditEvent } from "./lib/audit";
+import { requireCurrentAccount } from "./lib/authorization";
 
 export const seedDemoData = mutation({
   args: {},
   handler: async (ctx) => {
-    const identity = await auth.getUserIdentity(ctx);
-    if (!identity) throw new Error("Not authenticated");
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", identity.subject))
-      .unique();
-    if (!user) throw new Error("User not found");
+    const { actorClerkUserId, user } = await requireCurrentAccount(ctx);
 
     // Check if demo data already exists
     const existingContacts = await ctx.db
@@ -334,6 +329,15 @@ export const seedDemoData = mutation({
       });
     }
 
+    await recordAuditEvent(ctx, {
+      userId: user._id,
+      actorClerkUserId,
+      action: "demo.seeded",
+      entityType: "demo_data",
+      entityId: user._id,
+      summary: `Created ${contactIds.length} demo contacts`,
+    });
+
     return { 
       message: "Demo data created successfully",
       contacts: contactIds.length,
@@ -348,13 +352,7 @@ export const seedDemoData = mutation({
 export const clearDemoData = mutation({
   args: {},
   handler: async (ctx) => {
-    const identity = await auth.getUserIdentity(ctx);
-    if (!identity) throw new Error("Not authenticated");
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", identity.subject))
-      .unique();
-    if (!user) throw new Error("User not found");
+    const { actorClerkUserId, user } = await requireCurrentAccount(ctx);
 
     // Delete all contacts (cascade will handle related data)
     const contacts = await ctx.db
@@ -403,6 +401,15 @@ export const clearDemoData = mutation({
     for (const candidate of dedupeCandidates) {
       await ctx.db.delete(candidate._id);
     }
+
+    await recordAuditEvent(ctx, {
+      userId: user._id,
+      actorClerkUserId,
+      action: "demo.cleared",
+      entityType: "demo_data",
+      entityId: user._id,
+      summary: `Cleared ${contacts.length} contacts and related demo records`,
+    });
 
     return {
       message: "Demo data cleared successfully",

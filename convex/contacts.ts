@@ -2,6 +2,8 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { auth } from "./auth";
 import { classifyContact } from "../lib/crm/contact-intelligence";
+import { recordAuditEvent } from "./lib/audit";
+import { requireCurrentAccount, requireOwnership } from "./lib/authorization";
 
 /**
  * Contact Management API
@@ -23,15 +25,7 @@ export const createContact = mutation({
     tags: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
-    const identity = await auth.getUserIdentity(ctx);
-    if (!identity) throw new Error("Not authenticated");
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", identity.subject))
-      .unique();
-
-    if (!user) throw new Error("User not found");
+    const { actorClerkUserId, user } = await requireCurrentAccount(ctx);
 
     const contactId = await ctx.db.insert("contacts", {
       userId: user._id,
@@ -49,6 +43,15 @@ export const createContact = mutation({
       lifecycleStage: "new",
       createdAt: Date.now(),
       updatedAt: Date.now(),
+    });
+
+    await recordAuditEvent(ctx, {
+      userId: user._id,
+      actorClerkUserId,
+      action: "contact.created",
+      entityType: "contact",
+      entityId: contactId,
+      summary: `Created contact ${args.name}`,
     });
 
     return contactId;
@@ -153,25 +156,28 @@ export const updateContact = mutation({
     )),
   },
   handler: async (ctx, args) => {
-    const identity = await auth.getUserIdentity(ctx);
-    if (!identity) throw new Error("Not authenticated");
+    const { actorClerkUserId, user } = await requireCurrentAccount(ctx);
 
     const contact = await ctx.db.get(args.id);
     if (!contact) throw new Error("Contact not found");
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", identity.subject))
-      .unique();
-
-    if (!user || contact.userId !== user._id) {
-      throw new Error("Unauthorized");
-    }
+    requireOwnership(user._id, contact.userId);
 
     const { id, ...updates } = args;
     await ctx.db.patch(id, {
       ...updates,
       updatedAt: Date.now(),
+    });
+
+    const changedFields = Object.keys(updates).filter(
+      (field) => updates[field as keyof typeof updates] !== undefined
+    );
+    await recordAuditEvent(ctx, {
+      userId: user._id,
+      actorClerkUserId,
+      action: "contact.updated",
+      entityType: "contact",
+      entityId: id,
+      summary: `Updated ${changedFields.join(", ") || "contact fields"}`,
     });
 
     return id;
@@ -182,20 +188,11 @@ export const updateContact = mutation({
 export const deleteContact = mutation({
   args: { id: v.id("contacts") },
   handler: async (ctx, args) => {
-    const identity = await auth.getUserIdentity(ctx);
-    if (!identity) throw new Error("Not authenticated");
+    const { actorClerkUserId, user } = await requireCurrentAccount(ctx);
 
     const contact = await ctx.db.get(args.id);
     if (!contact) throw new Error("Contact not found");
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", identity.subject))
-      .unique();
-
-    if (!user || contact.userId !== user._id) {
-      throw new Error("Unauthorized");
-    }
+    requireOwnership(user._id, contact.userId);
 
     // Delete all related data
     const interactions = await ctx.db
@@ -239,6 +236,14 @@ export const deleteContact = mutation({
     }
 
     await ctx.db.delete(args.id);
+    await recordAuditEvent(ctx, {
+      userId: user._id,
+      actorClerkUserId,
+      action: "contact.deleted",
+      entityType: "contact",
+      entityId: args.id,
+      summary: `Deleted contact ${contact.name}`,
+    });
     return args.id;
   },
 });
@@ -247,17 +252,11 @@ export const deleteContact = mutation({
 export const autoTag = mutation({
   args: { contactId: v.id("contacts") },
   handler: async (ctx, args) => {
-    const identity = await auth.getUserIdentity(ctx);
-    if (!identity) throw new Error("Not authenticated");
+    const { actorClerkUserId, user } = await requireCurrentAccount(ctx);
 
     const contact = await ctx.db.get(args.contactId);
     if (!contact) throw new Error("Contact not found");
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", identity.subject))
-      .unique();
-    if (!user || contact.userId !== user._id) throw new Error("Unauthorized");
+    requireOwnership(user._id, contact.userId);
 
     const autoType = classifyContact(contact.title, contact.company);
     const newTags: string[] = [...contact.tags];
@@ -267,6 +266,14 @@ export const autoTag = mutation({
       autoType,
       tags: newTags,
       updatedAt: Date.now(),
+    });
+    await recordAuditEvent(ctx, {
+      userId: user._id,
+      actorClerkUserId,
+      action: "contact.auto_tagged",
+      entityType: "contact",
+      entityId: args.contactId,
+      summary: `Classified contact as ${autoType}`,
     });
   },
 });

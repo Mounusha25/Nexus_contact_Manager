@@ -140,4 +140,38 @@ export default defineSchema({
     .index("by_user_status", ["userId", "status"])
     .index("by_primary", ["primaryContactId"])
     .index("by_duplicate", ["duplicateContactId"]),
+
+  auditEvents: defineTable({
+    userId: v.id("users"),
+    actorClerkUserId: v.string(),
+    action: v.union(
+      v.literal("account.created"),
+      v.literal("profile.updated"),
+      v.literal("contact.created"),
+      v.literal("contact.updated"),
+      v.literal("contact.deleted"),
+      v.literal("contact.auto_tagged"),
+      v.literal("contacts.merged"),
+      v.literal("duplicate.ignored"),
+      v.literal("interaction.created"),
+      v.literal("follow_up.created"),
+      v.literal("follow_up.completed"),
+      v.literal("follow_up.skipped"),
+      v.literal("demo.seeded"),
+      v.literal("demo.cleared")
+    ),
+    entityType: v.union(
+      v.literal("account"),
+      v.literal("contact"),
+      v.literal("interaction"),
+      v.literal("follow_up"),
+      v.literal("duplicate_candidate"),
+      v.literal("demo_data")
+    ),
+    entityId: v.string(),
+    summary: v.string(),
+    occurredAt: v.number(),
+  })
+    .index("by_user_occurred", ["userId", "occurredAt"])
+    .index("by_user_action", ["userId", "action"]),
 });

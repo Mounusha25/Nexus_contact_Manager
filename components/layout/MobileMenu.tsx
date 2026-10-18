@@ -13,6 +13,7 @@ import {
   Bell,
   BarChart3,
   MessageCircle,
+  ScrollText,
   Settings,
 } from "lucide-react";
 
@@ -22,6 +23,7 @@ const navigation = [
   { name: "Follow-ups", href: "/follow-ups", icon: Bell },
   { name: "Analytics", href: "/analytics", icon: BarChart3 },
   { name: "Relationship Assistant", href: "/assistant", icon: MessageCircle },
+  { name: "Audit log", href: "/audit-log", icon: ScrollText },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 

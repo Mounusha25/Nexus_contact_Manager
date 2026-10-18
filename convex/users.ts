@@ -1,6 +1,8 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { auth } from "./auth";
+import { recordAuditEvent } from "./lib/audit";
+import { requireCurrentAccount } from "./lib/authorization";
 
 export const ensureUser = mutation({
   args: {},
@@ -26,6 +28,15 @@ export const ensureUser = mutation({
       avatar: identity.pictureUrl,
       createdAt: Date.now(),
       updatedAt: Date.now(),
+    });
+
+    await recordAuditEvent(ctx, {
+      userId,
+      actorClerkUserId: identity.subject,
+      action: "account.created",
+      entityType: "account",
+      entityId: userId,
+      summary: "Created Nexus account",
     });
 
     return userId;
@@ -62,23 +73,20 @@ export const updateUserProfile = mutation({
     headline: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await auth.getUserIdentity(ctx);
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", identity.subject))
-      .unique();
-
-    if (!user) {
-      throw new Error("User not found");
-    }
+    const { actorClerkUserId, user } = await requireCurrentAccount(ctx);
 
     await ctx.db.patch(user._id, {
       ...args,
       updatedAt: Date.now(),
+    });
+
+    await recordAuditEvent(ctx, {
+      userId: user._id,
+      actorClerkUserId,
+      action: "profile.updated",
+      entityType: "account",
+      entityId: user._id,
+      summary: "Updated account profile",
     });
 
     return user._id;
